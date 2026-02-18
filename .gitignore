@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+
+# Runtime/log state
+telemetry/runtime/*.json
+telemetry/runtime/*.jsonl
+telemetry/logs/*.log
+telemetry/logs/*.txt
+
+# Local envs/secrets
+observability/.env
+*.env
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store

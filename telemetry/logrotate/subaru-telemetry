@@ -1,0 +1,8 @@
+__REPO_ROOT__/telemetry/logs/*.log {
+  daily
+  rotate 7
+  compress
+  missingok
+  notifempty
+  copytruncate
+}

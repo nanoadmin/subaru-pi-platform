@@ -1,0 +1,21 @@
+[Unit]
+Description=Subaru SSM2 Telemetry Publisher
+After=network-online.target mosquitto.service
+Wants=network-online.target mosquitto.service
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=__REPO_ROOT__/telemetry
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 __REPO_ROOT__/telemetry/ssm_logger.py mqtt --profile fast --hz 5 --chunk-size 24 --read-retries 2 --read-inter-delay 0.01 --flush-per-loop 120 --topic-base subaru --status-topic subaru/status --dtc-interval 5 --spool-file __REPO_ROOT__/telemetry/runtime/mqtt_spool.jsonl --state-file __REPO_ROOT__/telemetry/runtime/state.json
+Restart=always
+RestartSec=3
+TimeoutStopSec=15
+StandardOutput=append:__REPO_ROOT__/telemetry/logs/service.log
+StandardError=append:__REPO_ROOT__/telemetry/logs/service.log
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
