@@ -1,0 +1,186 @@
+[
+  {
+    "id": "tab_wrx_dashboard",
+    "type": "tab",
+    "label": "Subaru Dashboard",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "ui_tab_wrx",
+    "type": "ui_tab",
+    "name": "WRX",
+    "icon": "dashboard",
+    "disabled": false,
+    "hidden": false
+  },
+  {
+    "id": "ui_group_cockpit",
+    "type": "ui_group",
+    "name": " ",
+    "tab": "ui_tab_wrx",
+    "order": 1,
+    "disp": true,
+    "width": "24",
+    "collapse": false,
+    "className": ""
+  },
+  {
+    "id": "mqtt_local",
+    "type": "mqtt-broker",
+    "name": "Host Mosquitto",
+    "broker": "host.docker.internal",
+    "port": "1883",
+    "clientid": "nodered-wrx-dashboard",
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true,
+    "autoUnsubscribe": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthRetain": "false",
+    "birthPayload": "",
+    "closeTopic": "",
+    "closeQos": "0",
+    "closeRetain": "false",
+    "closePayload": "",
+    "willTopic": "",
+    "willQos": "0",
+    "willRetain": "false",
+    "willPayload": ""
+  },
+  {
+    "id": "mqtt_subaru_data",
+    "type": "mqtt in",
+    "z": "tab_wrx_dashboard",
+    "name": "subaru/data",
+    "topic": "subaru/data",
+    "qos": "1",
+    "datatype": "auto-detect",
+    "broker": "mqtt_local",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 150,
+    "y": 80,
+    "wires": [
+      [
+        "fn_build_dashboard"
+      ]
+    ]
+  },
+  {
+    "id": "mqtt_subaru_status",
+    "type": "mqtt in",
+    "z": "tab_wrx_dashboard",
+    "name": "subaru/status",
+    "topic": "subaru/status",
+    "qos": "1",
+    "datatype": "auto-detect",
+    "broker": "mqtt_local",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 160,
+    "y": 120,
+    "wires": [
+      [
+        "fn_build_dashboard"
+      ]
+    ]
+  },
+  {
+    "id": "mqtt_subaru_dtc",
+    "type": "mqtt in",
+    "z": "tab_wrx_dashboard",
+    "name": "subaru/dtc",
+    "topic": "subaru/dtc",
+    "qos": "1",
+    "datatype": "auto-detect",
+    "broker": "mqtt_local",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 145,
+    "y": 160,
+    "wires": [
+      [
+        "fn_build_dashboard"
+      ]
+    ]
+  },
+  {
+    "id": "inject_heartbeat",
+    "type": "inject",
+    "z": "tab_wrx_dashboard",
+    "name": "UI heartbeat",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "0.5",
+    "topic": "ui/tick",
+    "payload": "{}",
+    "payloadType": "json",
+    "x": 140,
+    "y": 200,
+    "wires": [
+      [
+        "fn_build_dashboard"
+      ]
+    ]
+  },
+  {
+    "id": "fn_build_dashboard",
+    "type": "function",
+    "z": "tab_wrx_dashboard",
+    "name": "Build dashboard model",
+    "func": "const now = Date.now();\nconst topic = msg.topic || '';\n\nfunction asObj(v) {\n  if (v && typeof v === 'object') return v;\n  if (typeof v === 'string') {\n    try { return JSON.parse(v); } catch (e) { return null; }\n  }\n  return null;\n}\nfunction num(v) {\n  const n = Number(v);\n  return Number.isFinite(n) ? n : NaN;\n}\nfunction fmt(v, digits = 0) {\n  const n = num(v);\n  return Number.isFinite(n) ? n.toFixed(digits) : '--';\n}\nfunction clamp(v, lo, hi) {\n  if (!Number.isFinite(v)) return lo;\n  return Math.max(lo, Math.min(hi, v));\n}\nfunction ageSec(ms) {\n  if (!ms) return 9999;\n  return Math.max(0, Math.round((now - ms) / 1000));\n}\nfunction scoreToAngle(v, min, max) {\n  const pct = clamp((v - min) / (max - min), 0, 1);\n  return Math.round(-130 + pct * 260);\n}\nfunction dtcSeverity(item) {\n  const code = String(item?.code || '').toUpperCase();\n  const title = String(item?.title || '').toLowerCase();\n  if (code.startsWith('P03') || title.includes('misfire') || title.includes('knock')) return 'critical';\n  if (code.startsWith('P02') || code.startsWith('P01') || title.includes('sensor') || title.includes('fuel')) return 'warning';\n  return 'info';\n}\n\nconst state = flow.get('dash_state') || {};\nconst payloadObj = asObj(msg.payload);\n\nif (topic === 'subaru/data' && payloadObj) {\n  state.data = payloadObj;\n  state.lastDataMs = now;\n}\nif (topic === 'subaru/status' && payloadObj) {\n  state.status = payloadObj;\n  state.lastStatusMs = now;\n}\nif (topic === 'subaru/dtc' && payloadObj) {\n  state.dtc = payloadObj;\n  state.lastDtcMs = now;\n\n  const prev = flow.get('known_dtc_codes') || [];\n  const currCodes = (payloadObj.current || []).map(d => d?.code).filter(Boolean);\n  const unique = [...new Set(currCodes)];\n  const newCodes = unique.filter(c => !prev.includes(c));\n  if (newCodes.length > 0) flow.set('dtc_alert', { ts: now, codes: newCodes });\n  flow.set('known_dtc_codes', unique);\n}\n\nflow.set('dash_state', state);\n\nconst data = state.data || {};\nconst metrics = data.metrics || {};\nconst status = state.status || {};\nconst dtc = state.dtc || {};\nconst dtcAlert = flow.get('dtc_alert');\nconst alertActive = !!(dtcAlert && (now - dtcAlert.ts) < 15000);\n\nconst speedMph = num(metrics.vehicle_speed) * 0.621371;\nconst rpm = num(metrics.engine_speed);\nconst coolant = num(metrics.coolant_temperature);\nconst boost = num(metrics.manifold_relative_pressure);\nconst battery = num(metrics.battery_v);\nconst throttle = num(metrics.throttle_opening_angle);\nconst afr = num(metrics.afr_sensor_1);\nconst knock = num(metrics.knock_correction);\n\nconst dataAge = ageSec(state.lastDataMs);\nconst dtcAge = ageSec(state.lastDtcMs);\n\nlet freshness = 'ok';\nif (dataAge > 5) freshness = 'warn';\nif (dataAge > 12) freshness = 'bad';\n\nlet coolantState = 'ok';\nif (coolant >= 100) coolantState = 'warn';\nif (coolant >= 108) coolantState = 'bad';\n\nconst cur = (dtc.current || []).map(d => ({ ...d, sev: dtcSeverity(d) }));\nconst hist = (dtc.historic || []).map(d => ({ ...d, sev: dtcSeverity(d) }));\n\nconst rpmPct = clamp(rpm / 8000, 0, 1);\nconst shiftLevel = Math.round(rpmPct * 10);\nconst shiftBlink = rpm >= 6500;\n\nmsg.payload = {\n  ts: new Date(now).toISOString(),\n  status: {\n    romId: status.rom_id || data.rom_id || '--',\n    profile: status.profile || data.profile || '--',\n    mqttConnected: !!status.mqtt_connected,\n    running: status.state === 'running',\n    freshness,\n    dataAgeSec: dataAge,\n    dtcAgeSec: dtcAge,\n    lastMsgLabel: dataAge + 's ago'\n  },\n  shift: {\n    level: shiftLevel,\n    blink: shiftBlink\n  },\n  gauges: {\n    speed: { label: 'Speed', value: fmt(speedMph, 0), unit: 'mph', angle: scoreToAngle(speedMph, 0, 160) },\n    rpm: { label: 'RPM', value: fmt(rpm, 0), unit: 'rpm', angle: scoreToAngle(rpm, 0, 8000) }\n  },\n  coolant: {\n    value: fmt(coolant, 0),\n    unit: 'C',\n    state: coolantState\n  },\n  chips: [\n    { k: 'Boost', v: fmt(boost, 1), u: 'psi' },\n    { k: 'Battery', v: fmt(battery, 2), u: 'V' },\n    { k: 'Throttle', v: fmt(throttle, 0), u: '%' },\n    { k: 'AFR', v: fmt(afr, 2), u: 'lambda' },\n    { k: 'Knock', v: fmt(knock, 1), u: 'deg' }\n  ],\n  dtc: {\n    currentCount: Number(dtc.count_current || 0),\n    historicCount: Number(dtc.count_historic || 0),\n    current: cur,\n    historic: hist,\n    alert: alertActive,\n    newCodes: alertActive && dtcAlert ? dtcAlert.codes : []\n  }\n};\n\nreturn msg;",
+    "outputs": 1,
+    "timeout": "",
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 130,
+    "wires": [
+      [
+        "ui_template_dashboard"
+      ]
+    ]
+  },
+  {
+    "id": "ui_template_dashboard",
+    "type": "ui_template",
+    "z": "tab_wrx_dashboard",
+    "group": "ui_group_cockpit",
+    "name": "WRX Dark Cockpit",
+    "order": 1,
+    "width": "24",
+    "height": "14",
+    "format": "<style>\n.nr-dashboard-theme md-toolbar,\n.nr-dashboard-theme md-sidenav,\n.nr-dashboard-theme .md-sidenav-left,\n.nr-dashboard-theme .nr-dashboard-tab,\n.nr-dashboard-theme .nr-dashboard-menu,\n.nr-dashboard-theme .nr-dashboard-cardtitle,\n.nr-dashboard-theme .md-toolbar-tools { display:none !important; }\n\nhtml, body, #nr-dashboard, .nr-dashboard-theme, .nr-dashboard-theme md-content {\n  margin: 0 !important;\n  padding: 0 !important;\n  width: 100% !important;\n  height: 100% !important;\n  overflow: hidden !important;\n  background: #040506 !important;\n}\n.nr-dashboard-theme .nr-dashboard-cardcontainer { margin:0 !important; padding:0 !important; background:#040506 !important; }\n\n.v5 {\n  position: fixed;\n  inset: 0;\n  color: #eef3ff;\n  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;\n  padding: 6px;\n  box-sizing: border-box;\n  background: linear-gradient(180deg, #0a0a0b 0%, #08090b 45%, #050506 100%);\n  border: 1px solid #3a2c1d;\n}\n\n.shiftbar {\n  display: grid;\n  grid-template-columns: repeat(10, 1fr);\n  gap: 4px;\n  margin-bottom: 6px;\n}\n.light {\n  height: 7px;\n  border-radius: 4px;\n  background: rgba(255,255,255,0.08);\n  border: 1px solid rgba(255,150,50,0.2);\n}\n.light.active { background:#ff9a2f; box-shadow:0 0 8px rgba(255,154,47,0.55); }\n.light.active.hot { background:#ff7a2b; box-shadow:0 0 9px rgba(255,122,43,0.6); }\n.light.active.red { background:#ff4f4f; box-shadow:0 0 10px rgba(255,79,79,0.75); }\n.blink .light.active.red { animation: flash .25s steps(1,end) infinite; }\n@keyframes flash { 50% { opacity: 0.25; } }\n\n .topline {\n  display:flex;\n  justify-content:space-between;\n  align-items:flex-start;\n  font-size:9px;\n  color:#c6b6a0;\n  margin-bottom:8px;\n}\n.brand { letter-spacing:0.35px; color:#ffb45b; font-weight:600; padding-top:2px; font-size:9px; }\n.pills { white-space:nowrap; display:flex; gap:3px; margin-top:2px; }\n.pill { display:inline-block; padding:1px 6px; margin-left:0; border:1px solid #564029; border-radius:999px; font-size:8px; color:#ffc989; }\n.pill.ok { color:#77ebb2; border-color:#2e845e; }\n.pill.warn { color:#ffd88c; border-color:#9a7a39; }\n.pill.bad { color:#ff9fb1; border-color:#a0465c; }\n\n.shell { height: calc(100% - 37px); display:grid; grid-template-columns: 64% 36%; gap: 6px; }\n.left { min-height:0; display:grid; grid-template-rows: 50% 25% 25%; gap:6px; }\n\n.g-row { display:grid; grid-template-columns:1fr 1fr; gap:6px; }\n.card {\n  border-radius:10px;\n  border:1px solid #372a1d;\n  background: linear-gradient(180deg, rgba(255,148,43,0.14), rgba(20,21,25,0.74));\n  box-shadow: inset 0 0 0 1px rgba(255,173,94,0.05);\n}\n.gauge { padding:6px; display:flex; flex-direction:column; }\n.gl { font-size:11px; color:#f0c68d; }\n.dial {\n  width:128px; height:128px; margin:auto; border-radius:50%; position:relative;\n  background: radial-gradient(circle at 50% 50%, #101116 47%, #281f17 48%, #4a3522 53%, #2a2119 58%, transparent 58%),\n              conic-gradient(from -130deg, rgba(255,175,88,0.95) 0deg, rgba(255,175,88,0.22) 182deg, rgba(255,120,80,0.95) 183deg, rgba(255,80,80,0.9) 230deg, rgba(70,45,33,0.9) 231deg);\n}\n.dial::before { content:''; position:absolute; inset:20px; border-radius:50%; background:#0b0f18; border:1px solid #4b3a27; }\n.needle {\n  position:absolute; left:50%; top:50%; width:2px; height:50px; transform-origin:50% 92%;\n  background: linear-gradient(180deg, #ffe0ab 0%, #ff9f45 100%);\n  box-shadow:0 0 10px rgba(255,168,82,0.75);\n}\n.hub { position:absolute; left:50%; top:50%; width:12px; height:12px; margin-left:-6px; margin-top:-6px; border-radius:50%; background:#ffbb66; box-shadow:0 0 10px rgba(255,187,102,0.8); }\n.g-val { position:absolute; left:0; right:0; bottom:16px; text-align:center; z-index:2; font-size:44px; line-height:0.9; font-weight:700; }\n.g-unit { display:block; font-size:12px; color:#cfb38d; font-weight:500; margin-top:6px; }\n\n.coolant { padding:8px; display:flex; align-items:center; justify-content:space-between; }\n.ct { font-size:12px; color:#f0c68d; letter-spacing:0.4px; }\n.cv { font-size:74px; line-height:0.85; font-weight:800; }\n.cv .u { font-size:20px; color:#d8b38a; }\n.coolant .c-state {\n  font-size:10px;\n  letter-spacing:0.6px;\n  text-transform:uppercase;\n  border:1px solid #5a4228;\n  border-radius:999px;\n  padding:2px 7px;\n  color:#ffdcb0;\n}\n.coolant.ok { border-color:#4a3926; background:linear-gradient(180deg, rgba(255,145,30,0.16), rgba(16,18,22,0.7)); }\n.coolant.ok .cv { color:#f4f2ee; }\n.coolant.warn {\n  border-color:#c78b33;\n  background:linear-gradient(180deg, rgba(255,190,78,0.28), rgba(30,24,16,0.82));\n  box-shadow: inset 0 0 0 1px rgba(255,212,135,0.28);\n}\n.coolant.warn .cv { color:#ffd88c; text-shadow:0 0 10px rgba(255,200,96,0.25); }\n.coolant.warn .c-state { border-color:#d6a24c; color:#ffe0a5; }\n.coolant.bad {\n  border-color:#e45e4a;\n  background:linear-gradient(180deg, rgba(255,106,82,0.28), rgba(35,15,17,0.88));\n  box-shadow: inset 0 0 0 1px rgba(255,146,134,0.35), 0 0 14px rgba(255,90,82,0.25);\n}\n.coolant.bad .cv { color:#ffb0a2; text-shadow:0 0 14px rgba(255,120,110,0.5); }\n.coolant.bad .c-state { border-color:#ff8f7d; color:#ffc1b6; }\n\n.chips { display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; }\n.chip { padding:6px; border-radius:9px; border:1px solid #3b2e20; background:linear-gradient(180deg, rgba(255,145,30,0.14), rgba(16,18,22,0.72)); }\n.ck { font-size:10px; color:#d6b58f; }\n.cv2 { font-size:24px; font-weight:700; line-height:1.0; }\n.cu { font-size:10px; color:#c7aa89; margin-left:3px; }\n\n.dtc {\n  min-height:0; display:flex; flex-direction:column;\n  border-radius:10px; border:1px solid #523a22;\n  background: linear-gradient(180deg, rgba(49,39,27,0.74), rgba(14,15,19,0.95));\n  box-shadow: inset 0 0 0 1px rgba(255,186,110,0.12);\n  padding:7px;\n}\n.dtc.alert {\n  border-color:#ff6a52;\n  box-shadow: inset 0 0 0 1px rgba(255,106,82,0.6), 0 0 18px rgba(255,106,82,0.35);\n  animation: alertPulse 680ms ease-in-out infinite alternate;\n}\n@keyframes alertPulse { from { filter:brightness(0.95);} to {filter:brightness(1.08);} }\n.dh { display:flex; justify-content:space-between; align-items:baseline; }\n.dh .t { font-size:40px; line-height:0.9; font-weight:800; color:#ffba63; }\n.dh .m { font-size:11px; color:#d0b089; }\n.ev { margin:6px 0; border:1px solid #7b5528; border-radius:7px; padding:4px 6px; font-size:11px; color:#ffd6a4; background:linear-gradient(90deg, rgba(255,173,94,0.2), rgba(255,173,94,0.06)); }\n.ev.alert { border-color:#ff6a52; color:#ffb8aa; background:linear-gradient(90deg, rgba(255,106,82,0.24), rgba(255,106,82,0.08)); }\n.cols { min-height:0; display:grid; grid-template-columns: 1fr 1fr; gap:6px; }\n.sub { min-height:0; border:1px solid #432f1f; border-radius:8px; padding:5px; display:flex; flex-direction:column; background: rgba(13,12,14,0.55); }\n.sub.historic { opacity:0.72; filter:saturate(0.72); }\n.sub.historic h4 { color:#d2b089; }\n.sub.historic .list li { color:#c9b8a4; }\n.sub h4 { margin:0 0 4px 0; font-size:11px; color:#ffd8a8; font-weight:600; letter-spacing:0.28px; }\n.list { margin:0; padding-left:14px; overflow:auto; }\n.list li { font-size:14px; line-height:1.24; margin:3px 0; color:#f4ece3; white-space:normal; word-break:break-word; }\n.sev-critical .code { color:#ff8ea5; }\n.sev-warning .code { color:#ffcf86; }\n.sev-info .code { color:#ffc989; }\n.code { font-weight:700; margin-right:4px; }\n\n.watermark {\n  position: absolute;\n  right: 10px;\n  bottom: 6px;\n  font-size: 10px;\n  letter-spacing: 0.6px;\n  text-transform: uppercase;\n  color: rgba(255,178,92,0.36);\n  pointer-events: none;\n}\n</style>\n\n<div class=\"v5\" ng-if=\"msg.payload\">\n  <div class=\"shiftbar\" ng-class=\"{'blink': msg.payload.shift.blink}\">\n    <span class=\"light\" ng-repeat=\"n in [1,2,3,4,5,6,7,8,9,10] track by $index\" ng-class=\"{'active': msg.payload.shift.level >= n, 'hot': n >= 7, 'red': n >= 9}\"></span>\n  </div>\n\n  <div class=\"topline\">\n    <div class=\"brand\">WRX TELEMETRY // {{msg.payload.status.romId}} // {{msg.payload.status.profile}} // LAST MSG {{msg.payload.status.lastMsgLabel}}</div>\n    <div class=\"pills\">\n      <span class=\"pill\" ng-class=\"msg.payload.status.mqttConnected ? 'ok' : 'bad'\">MQTT {{msg.payload.status.mqttConnected ? 'OK' : 'DOWN'}}</span>\n      <span class=\"pill\" ng-class=\"msg.payload.status.running ? 'ok' : 'bad'\">LOGGER {{msg.payload.status.running ? 'RUN' : 'STOP'}}</span>\n      <span class=\"pill\" ng-class=\"msg.payload.status.freshness\">DATA {{msg.payload.status.dataAgeSec}}s</span>\n      <span class=\"pill\">DTC {{msg.payload.status.dtcAgeSec}}s</span>\n    </div>\n  </div>\n\n  <div class=\"shell\">\n    <div class=\"left\">\n      <div class=\"g-row\">\n        <div class=\"card gauge\">\n          <div class=\"gl\">{{msg.payload.gauges.speed.label}}</div>\n          <div class=\"dial\">\n            <div class=\"needle\" ng-style=\"{'transform':'translate(-50%,-92%) rotate(' + msg.payload.gauges.speed.angle + 'deg)'}\"></div>\n            <div class=\"hub\"></div>\n            <div class=\"g-val\">{{msg.payload.gauges.speed.value}}<span class=\"g-unit\">{{msg.payload.gauges.speed.unit}}</span></div>\n          </div>\n        </div>\n        <div class=\"card gauge\">\n          <div class=\"gl\">{{msg.payload.gauges.rpm.label}}</div>\n          <div class=\"dial\">\n            <div class=\"needle\" ng-style=\"{'transform':'translate(-50%,-92%) rotate(' + msg.payload.gauges.rpm.angle + 'deg)'}\"></div>\n            <div class=\"hub\"></div>\n            <div class=\"g-val\">{{msg.payload.gauges.rpm.value}}<span class=\"g-unit\">{{msg.payload.gauges.rpm.unit}}</span></div>\n          </div>\n        </div>\n      </div>\n\n      <div class=\"card coolant\" ng-class=\"msg.payload.coolant.state\">\n        <div>\n          <div class=\"ct\">COOLANT TEMP</div>\n          <div class=\"c-state\" ng-if=\"msg.payload.coolant.state==='ok'\">Normal (<100 C)</div>\n          <div class=\"c-state\" ng-if=\"msg.payload.coolant.state==='warn'\">Warning (100-107 C)</div>\n          <div class=\"c-state\" ng-if=\"msg.payload.coolant.state==='bad'\">Critical (>=108 C)</div>\n        </div>\n        <div class=\"cv\">{{msg.payload.coolant.value}} <span class=\"u\">{{msg.payload.coolant.unit}}</span></div>\n      </div>\n\n      <div class=\"chips\">\n        <div class=\"chip\" ng-repeat=\"c in msg.payload.chips track by $index\">\n          <div class=\"ck\">{{c.k}}</div>\n          <div class=\"cv2\">{{c.v}}<span class=\"cu\">{{c.u}}</span></div>\n        </div>\n      </div>\n    </div>\n\n    <div class=\"dtc\" ng-class=\"{'alert': msg.payload.dtc.alert}\">\n      <div class=\"dh\">\n        <div class=\"t\">DTC</div>\n        <div class=\"m\">Now {{msg.payload.dtc.currentCount}} | Hist {{msg.payload.dtc.historicCount}}</div>\n      </div>\n\n      <div class=\"ev\" ng-class=\"{'alert': msg.payload.dtc.alert}\">\n        <span ng-if=\"msg.payload.dtc.alert\">New: {{msg.payload.dtc.newCodes.join(', ')}}</span>\n        <span ng-if=\"!msg.payload.dtc.alert\">No new DTC event</span>\n      </div>\n\n      <div class=\"cols\">\n        <div class=\"sub\">\n          <h4>ACTIVE</h4>\n          <ol class=\"list\">\n            <li ng-repeat=\"d in msg.payload.dtc.current track by $index\" ng-class=\"'sev-' + d.sev\">\n              <span class=\"code\">{{d.code}}</span>{{d.title}}\n            </li>\n            <li ng-if=\"!msg.payload.dtc.current.length\">None</li>\n          </ol>\n        </div>\n        <div class=\"sub historic\">\n          <h4>HISTORIC</h4>\n          <ol class=\"list\">\n            <li ng-repeat=\"d in msg.payload.dtc.historic track by $index\" ng-class=\"'sev-' + d.sev\">\n              <span class=\"code\">{{d.code}}</span>{{d.title}}\n            </li>\n            <li ng-if=\"!msg.payload.dtc.historic.length\">None</li>\n          </ol>\n        </div>\n      </div>\n    </div>\n  </div>\n\n  <div class=\"watermark\">rangabanga racing</div>\n</div>",
+    "storeOutMessages": true,
+    "fwdInMessages": true,
+    "resendOnRefresh": true,
+    "templateScope": "local",
+    "className": "",
+    "x": 700,
+    "y": 130,
+    "wires": [
+      []
+    ]
+  }
+]

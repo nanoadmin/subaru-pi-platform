@@ -1,0 +1,9 @@
+{
+  "name": "car-dashboard-node-red",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node-RED Subaru dashboard",
+  "dependencies": {
+    "node-red-dashboard": "^3.6.6"
+  }
+}

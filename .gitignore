@@ -12,6 +12,12 @@ telemetry/logs/*.txt
 observability/.env
 *.env
 
+# Node-RED runtime artifacts
+observability/nodered/data/node_modules/
+observability/nodered/data/.config*.json
+observability/nodered/data/*_cred.json
+observability/nodered/data/.sessions.json
+
 # Editor/OS
 .vscode/
 .idea/

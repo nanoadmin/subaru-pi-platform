@@ -4,7 +4,7 @@ Complete Raspberry Pi stack for Subaru telemetry + observability.
 
 This repo combines:
 - `telemetry/`: ECU polling and MQTT publishing (`subaru/*` topics)
-- `observability/`: InfluxDB + Grafana + optional Telegraf MQTT ingest
+- `observability/`: InfluxDB + Grafana + Node-RED dashboard (+ optional Telegraf MQTT ingest)
 
 Designed for a fresh Raspberry Pi install.
 
@@ -46,7 +46,12 @@ nano observability/.env
 bash scripts/start_observability.sh
 ```
 
-6. Verify telemetry MQTT output:
+6. (Recommended) Enable observability stack as boot service:
+```bash
+bash scripts/setup_observability_service.sh
+```
+
+7. Verify telemetry MQTT output:
 ```bash
 mosquitto_sub -h 127.0.0.1 -v -t 'subaru/status' -C 1 -W 10
 mosquitto_sub -h 127.0.0.1 -v -t 'subaru/dtc' -C 1 -W 10
@@ -55,12 +60,15 @@ mosquitto_sub -h 127.0.0.1 -v -t 'subaru/dtc' -C 1 -W 10
 ## URLs
 - Grafana: `http://<pi-ip>:3000`
 - InfluxDB: `http://<pi-ip>:8086`
+- Node-RED Dashboard: `http://<pi-ip>:1880/ui/`
 
 ## Repo Layout
 - `telemetry/ssm_logger.py`: main ECU -> MQTT logger
 - `telemetry/systemd/subaru-telemetry.service.template`: service template
 - `telemetry/logrotate/subaru-telemetry`: logrotate template
-- `observability/docker-compose.yml`: InfluxDB/Grafana/Telegraf stack
+- `observability/docker-compose.yml`: InfluxDB/Grafana/Node-RED/Telegraf stack
+- `observability/nodered/data/flows.json`: versioned Node-RED dashboard flow
+- `observability/systemd/subaru-observability.service.template`: compose boot service template
 - `scripts/`: install and setup scripts
 - `docs/`: guided setup and troubleshooting
 

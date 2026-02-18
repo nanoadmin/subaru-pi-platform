@@ -34,3 +34,9 @@ cd ~/subaru-pi-platform/observability
 docker compose down
 docker compose up -d
 ```
+
+## Observability stack did not start on boot
+```bash
+sudo systemctl status subaru-observability.service --no-pager -n 80
+journalctl -u subaru-observability.service -n 120 --no-pager
+```

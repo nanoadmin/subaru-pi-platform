@@ -29,6 +29,7 @@ sudo systemctl status subaru-telemetry.service
 cp observability/.env.example observability/.env
 nano observability/.env
 bash scripts/start_observability.sh
+bash scripts/setup_observability_service.sh
 ```
 
 ## 6. Optional Telegraf MQTT ingest
