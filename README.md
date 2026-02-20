@@ -8,6 +8,7 @@ Raspberry Pi stack for Subaru ECU telemetry, live dashboarding, GPS race HUD, an
 - [Architecture (Separation of Concerns)](#architecture-separation-of-concerns)
 - [What This Repo Provides](#what-this-repo-provides)
 - [Hardware](#hardware)
+- [Shopping List (With Links)](#shopping-list-with-links)
 - [Software Baseline](#software-baseline)
 - [Compatibility Matrix](#compatibility-matrix)
 - [Quick Start (Fresh Clone)](#quick-start-fresh-clone)
@@ -84,6 +85,22 @@ GPS (optional):
 
 Display/kiosk (optional):
 - HDMI/DSI screen for always-on dashboard
+
+## Shopping List (With Links)
+The list below matches this project's hardware path and includes the exact GPS HAT + antenna chain you asked for.
+
+- Subaru ECU USB cable (SSM/K-line): [Subaru FreeSSM OBD2 USB Data Cable (MY99+)](https://www.autoinstruct.com.au/product/subaru-freessm-obd2-usb-data-cable-my99/)
+- GPS HAT (exact pick): [Adafruit Ultimate GPS HAT for Raspberry Pi - Mini Kit](https://core-electronics.com.au/adafruit-ultimate-gps-hat-for-raspberry-pi-a-or-b-mini-kit.html)
+- u.FL adapter cable: [SMA to uFL/u.FL/IPX/IPEX RF Adapter Cable](https://core-electronics.com.au/sma-to-ufl-u-fl-ipx-ipex-rf-adapter-cable.html)
+- GPS puck antenna (SMA): [GPS Antenna - External Active Antenna - 3-5V 28dB 5 Meter SMA](https://core-electronics.com.au/gps-antenna-external-active-antenna-3-5v-28db-5-meter-sma.html)
+- In-car power (12V/24V -> USB-C, enough headroom): [Anker PowerDrive III Duo USB-C Car Charger](https://www.anker.com/products/a2724)
+- 7-inch Pi screen: [Raspberry Pi Touch Display 2 (7-inch)](https://core-electronics.com.au/raspberry-pi-touch-display-2.html)
+- Raspberry Pi 4: [Raspberry Pi 4 Model B 4GB](https://core-electronics.com.au/raspberry-pi-4-model-b-4gb.html)
+- microSD card: [Official Raspberry Pi 128GB A2-Class microSD card](https://core-electronics.com.au/official-raspberry-pi-128gb-a2-micro-sd-card.html)
+
+Notes:
+- The selected GPS HAT provides a u.FL connector for external antenna use.
+- The selected car charger accepts `12V/24V` input and can deliver up to `5V/3A` per USB-C port (suitable for Pi 4 + display class loads when using a quality USB-C cable).
 
 ## Software Baseline
 - Raspberry Pi OS Bookworm (64-bit recommended)
