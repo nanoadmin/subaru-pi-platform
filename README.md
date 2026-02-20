@@ -1,80 +1,104 @@
 # Subaru Pi Platform
 
-Complete Raspberry Pi stack for Subaru telemetry + observability.
+Raspberry Pi stack for Subaru ECU telemetry, live dashboarding, GPS race HUD, and time-series storage.
 
-This repo combines:
-- `telemetry/`: ECU polling and MQTT publishing (`subaru/*` topics)
-- `observability/`: InfluxDB + Grafana + Node-RED dashboard (+ optional Telegraf MQTT ingest)
+## What This Repo Provides
+- `telemetry/`: Subaru SSM2/K-line ECU polling and MQTT publishing (`subaru/*`)
+- `observability/`: InfluxDB + Grafana + Node-RED + Telegraf ingest
+- `gps/`: real UART GPS publisher, race simulator, and race HUD web server
+- `scripts/`: install and service bootstrap helpers
+- `docs/`: setup/troubleshooting/runbook docs for humans and automation
 
-Designed for a fresh Raspberry Pi install.
+## Hardware
+Minimum:
+- Raspberry Pi 4/5
+- microSD (32GB+ recommended)
+- LAN/Wi-Fi connectivity
 
-## Hardware You Need
-- Raspberry Pi (Pi 4/5 recommended)
-- microSD card (32GB+)
-- Subaru-compatible K-line adapter (`/dev/ttyUSB0`)
-- Network access (LAN/Wi-Fi)
+ECU telemetry:
+- Subaru-compatible K-line adapter on `/dev/ttyUSB0`
 
-## Software Prereqs
-- Raspberry Pi OS (Bookworm recommended)
-- SSH enabled (optional but recommended)
+GPS (optional):
+- UART GPS module wired to Pi UART (`/dev/ttyS0`)
 
-## Quick Start (New Pi)
-1. Clone repo:
+Display/kiosk (optional):
+- HDMI/DSI screen for always-on dashboard
+
+## Software Baseline
+- Raspberry Pi OS Bookworm (64-bit recommended)
+- Docker + Compose plugin
+- Mosquitto broker
+- Python 3
+
+## Quick Start (Fresh Clone)
+1. Clone:
 ```bash
 git clone <your-repo-url> ~/subaru-pi-platform
 cd ~/subaru-pi-platform
 ```
-
-2. Install packages + Docker:
+2. Install prerequisites:
 ```bash
 bash scripts/install_prereqs.sh
 ```
-
-3. Configure telemetry service:
+3. Configure ECU telemetry service:
 ```bash
 bash scripts/setup_telemetry_service.sh
 ```
-
 4. Configure observability env:
 ```bash
 cp observability/.env.example observability/.env
 nano observability/.env
 ```
-
 5. Start observability stack:
 ```bash
 bash scripts/start_observability.sh
 ```
-
-6. (Recommended) Enable observability stack as boot service:
+6. Enable observability stack at boot:
 ```bash
 bash scripts/setup_observability_service.sh
 ```
 
-7. Verify telemetry MQTT output:
-```bash
-mosquitto_sub -h 127.0.0.1 -v -t 'subaru/status' -C 1 -W 10
-mosquitto_sub -h 127.0.0.1 -v -t 'subaru/dtc' -C 1 -W 10
-```
-
-## URLs
+## Runtime URLs
+- Node-RED UI: `http://<pi-ip>:1880/`
+- Main dashboard: `http://<pi-ip>:1880/ui/`
 - Grafana: `http://<pi-ip>:3000`
 - InfluxDB: `http://<pi-ip>:8086`
-- Node-RED Dashboard: `http://<pi-ip>:1880/ui/`
+- Race HUD server (if running): `http://<pi-ip>:8091/`
 
-## Repo Layout
-- `telemetry/ssm_logger.py`: main ECU -> MQTT logger
-- `telemetry/systemd/subaru-telemetry.service.template`: service template
-- `telemetry/logrotate/subaru-telemetry`: logrotate template
-- `observability/docker-compose.yml`: InfluxDB/Grafana/Node-RED/Telegraf stack
-- `observability/nodered/data/flows.json`: versioned Node-RED dashboard flow
-- `observability/systemd/subaru-observability.service.template`: compose boot service template
-- `scripts/`: install and setup scripts
-- `docs/`: guided setup and troubleshooting
+Note: the Node-RED main dashboard embeds race HUD from `:8091` on the right pane.
 
-## First Docs To Read
-- `docs/SETUP_PI.md`
-- `docs/TROUBLESHOOTING.md`
-- `docs/MQTT_TOPICS.md`
+## Verification
+Telemetry topics:
+```bash
+mosquitto_sub -h 127.0.0.1 -v -t 'subaru/status' -C 1 -W 10
+mosquitto_sub -h 127.0.0.1 -v -t 'subaru/data' -C 1 -W 10
+```
+Influx ingest (`subaru_metrics`):
+```bash
+source observability/.env
+curl -sS \
+  -H "Authorization: Token $INFLUXDB_TOKEN" \
+  -H "Content-Type: application/vnd.flux" \
+  -H "Accept: application/csv" \
+  "http://127.0.0.1:8086/api/v2/query?org=$INFLUXDB_ORG" \
+  --data-binary "from(bucket: \"$INFLUXDB_BUCKET\") |> range(start: -2m) |> filter(fn: (r) => r._measurement == \"subaru_metrics\") |> limit(n: 5)"
+```
+GPS ingest (`subaru_gps`):
+```bash
+source observability/.env
+curl -sS \
+  -H "Authorization: Token $INFLUXDB_TOKEN" \
+  -H "Content-Type: application/vnd.flux" \
+  -H "Accept: application/csv" \
+  "http://127.0.0.1:8086/api/v2/query?org=$INFLUXDB_ORG" \
+  --data-binary "from(bucket: \"$INFLUXDB_BUCKET\") |> range(start: -2m) |> filter(fn: (r) => r._measurement == \"subaru_gps\") |> limit(n: 5)"
+```
 
-- `docs/GIT_PUBLISH.md`
+## Human + Robot Docs
+- Human setup: `docs/SETUP_PI.md`
+- Human troubleshooting: `docs/TROUBLESHOOTING.md`
+- Topic contracts: `docs/MQTT_TOPICS.md`
+- GPS usage: `gps/README.md`
+- Robot/operator runbook: `docs/OPERATIONS.md`
+- Robot agent guide: `AGENTS.md`
+- Git push flow: `docs/GIT_PUBLISH.md`

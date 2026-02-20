@@ -11,6 +11,6 @@ if [[ ! -f "$OBS/.env" ]]; then
 fi
 
 cd "$OBS"
-docker compose up -d
+docker compose up -d --build
 
 docker compose ps

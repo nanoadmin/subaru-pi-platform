@@ -26,6 +26,13 @@ from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 import paho.mqtt.client as mqtt
 import serial
 
+TELEMETRY_DIR = Path(__file__).resolve().parent
+REPO_ROOT = TELEMETRY_DIR.parent
+DEFAULT_ROMRAIDER_DEFS = TELEMETRY_DIR / "vendor" / "RomRaider" / "definitions" / "log_defs.xml"
+DEFAULT_SPOOL_FILE = TELEMETRY_DIR / "runtime" / "mqtt_spool.jsonl"
+DEFAULT_STATE_FILE = TELEMETRY_DIR / "runtime" / "state.json"
+DEFAULT_DTC_DEFS_FILE = TELEMETRY_DIR / "vendor" / "FreeSSM" / "src" / "SSMFlagbyteDefinitions_en.cpp"
+
 
 def log(message: str) -> None:
     stamp = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -1415,7 +1422,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     mqtt_cmd = sub.add_parser("mqtt", help="Publish RomRaider params to MQTT")
     mqtt_cmd.add_argument(
         "--romraider-defs",
-        default="/home/pi/subaru-telemetry/vendor/RomRaider/definitions/log_defs.xml",
+        default=str(DEFAULT_ROMRAIDER_DEFS),
         help="Path to RomRaider log_defs.xml",
     )
     mqtt_cmd.add_argument("--hz", type=float, default=2.0, help="Sample rate (default: 2 Hz)")
@@ -1438,12 +1445,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     mqtt_cmd.add_argument(
         "--spool-file",
-        default="/home/pi/subaru-telemetry/runtime/mqtt_spool.jsonl",
+        default=str(DEFAULT_SPOOL_FILE),
         help="JSONL spool file used while MQTT is unavailable",
     )
     mqtt_cmd.add_argument(
         "--state-file",
-        default="/home/pi/subaru-telemetry/runtime/state.json",
+        default=str(DEFAULT_STATE_FILE),
         help="Runtime state output JSON file",
     )
     mqtt_cmd.add_argument("--max-spool-entries", type=int, default=10000, help="Max queued samples")
@@ -1467,7 +1474,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     mqtt_cmd.add_argument(
         "--dtc-defs-file",
-        default="/home/pi/subaru-telemetry/vendor/FreeSSM/src/SSMFlagbyteDefinitions_en.cpp",
+        default=str(DEFAULT_DTC_DEFS_FILE),
         help="Path to FreeSSM DTC definitions source",
     )
 

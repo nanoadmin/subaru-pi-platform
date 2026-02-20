@@ -18,6 +18,9 @@ import serial
 
 from ssm_logger import SSM2Client, parse_addr, read_chunked
 
+TELEMETRY_DIR = Path(__file__).resolve().parent
+DEFAULT_DTC_DEFS_FILE = TELEMETRY_DIR / "vendor" / "FreeSSM" / "src" / "SSMFlagbyteDefinitions_en.cpp"
+
 
 @dataclass(frozen=True)
 class DtcEntry:
@@ -202,7 +205,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--pad", type=parse_addr, default=0x00, help="Pad address (default: 0x00)")
     p.add_argument(
         "--defs-file",
-        default="/home/pi/subaru-telemetry/vendor/FreeSSM/src/SSMFlagbyteDefinitions_en.cpp",
+        default=str(DEFAULT_DTC_DEFS_FILE),
         help="Path to FreeSSM English DTC definitions source",
     )
     p.add_argument("--chunk-size", type=int, default=64, help="Initial SSM address chunk size")

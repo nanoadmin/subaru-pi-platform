@@ -7,6 +7,8 @@ telemetry/runtime/*.json
 telemetry/runtime/*.jsonl
 telemetry/logs/*.log
 telemetry/logs/*.txt
+gps/output/
+gps/.playwright-cli/
 
 # Local envs/secrets
 observability/.env
@@ -14,9 +16,15 @@ observability/.env
 
 # Node-RED runtime artifacts
 observability/nodered/data/node_modules/
+observability/nodered/data/.npm/
 observability/nodered/data/.config*.json
+observability/nodered/data/.config*.json.backup
 observability/nodered/data/*_cred.json
 observability/nodered/data/.sessions.json
+observability/nodered/data/settings.js
+observability/nodered/data/flows.pre_restore.*.json
+observability/nodered/data/flows.backup.*.json
+observability/nodered/data/package-lock.json
 
 # Editor/OS
 .vscode/

@@ -1,23 +1,22 @@
-# Publish As A New Git Repository
+# Publish Changes To GitHub
 
-From the repo root:
+This repo already has a configured `origin`.
 
+## Standard publish flow
 ```bash
 cd ~/subaru-pi-platform
-git init
-git add .
-git commit -m "Initial Subaru Pi Platform stack"
+git status
+git add -A
+git commit -m "Describe your changes"
+git push origin main
 ```
 
-Create a remote repository (GitHub/GitLab), then:
-
+## If branch does not track remote yet
 ```bash
-git branch -M main
-git remote add origin <your-remote-url>
 git push -u origin main
 ```
 
-## Before sharing publicly
-- Keep `observability/.env` out of git (already ignored)
-- Verify no secrets in commit history
-- Update `README.md` clone URL placeholders
+## Before pushing
+- Keep secrets out of git (`observability/.env` is ignored)
+- Review diffs for local-only artifacts
+- Ensure dashboards/services still start after changes

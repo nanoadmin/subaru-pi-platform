@@ -8,6 +8,7 @@ echo "[2/4] Installing system packages..."
 sudo apt install -y \
   git curl ca-certificates gnupg lsb-release \
   python3 python3-pip python3-venv \
+  python3-paho-mqtt python3-serial \
   mosquitto mosquitto-clients \
   jq
 
