@@ -2,6 +2,22 @@
 
 Raspberry Pi stack for Subaru ECU telemetry, live dashboarding, GPS race HUD, and time-series storage.
 
+## Contents
+- [Live Dashboard Screenshot (Pi)](#live-dashboard-screenshot-pi)
+- [Architecture Diagram](#architecture-diagram)
+- [Architecture (Separation of Concerns)](#architecture-separation-of-concerns)
+- [What This Repo Provides](#what-this-repo-provides)
+- [Hardware](#hardware)
+- [Software Baseline](#software-baseline)
+- [Compatibility Matrix](#compatibility-matrix)
+- [Quick Start (Fresh Clone)](#quick-start-fresh-clone)
+- [Service Ports](#service-ports)
+- [Runtime URLs](#runtime-urls)
+- [GPS Requirements (What You Need)](#gps-requirements-what-you-need)
+- [Verification](#verification)
+- [Troubleshooting Decision Tree](#troubleshooting-decision-tree)
+- [Human + Robot Docs](#human--robot-docs)
+
 ## Live Dashboard Screenshot (Pi)
 Captured on this Pi on February 20, 2026:
 
@@ -75,6 +91,17 @@ Display/kiosk (optional):
 - Mosquitto broker
 - Python 3
 
+## Compatibility Matrix
+| Component | Supported/Expected | Notes |
+|---|---|---|
+| Raspberry Pi | Pi 4 / Pi 5 | Pi 3 may work with reduced dashboard performance |
+| OS | Raspberry Pi OS Bookworm (64-bit) | Preferred baseline for Docker + Python tooling |
+| Python | 3.9+ | 3.11+ recommended on Bookworm |
+| Docker Engine | 24+ | Compose plugin required |
+| MQTT Broker | Mosquitto 2.x | Expected at `127.0.0.1:1883` |
+| GPS input | UART `/dev/ttyS0` | Disable serial login shell first |
+| ECU adapter | K-line on `/dev/ttyUSB0` | Subaru SSM2 polling path |
+
 ## Quick Start (Fresh Clone)
 1. Clone:
 ```bash
@@ -103,6 +130,16 @@ bash scripts/start_observability.sh
 bash scripts/setup_observability_service.sh
 ```
 
+## Service Ports
+| Service | Port | Path | Purpose |
+|---|---:|---|---|
+| Mosquitto MQTT | `1883` | n/a | Telemetry and GPS message bus |
+| Node-RED editor | `1880` | `/` | Flow editing and operations |
+| Node-RED dashboard | `1880` | `/ui/` | Live dashboard UI |
+| InfluxDB | `8086` | `/` | Time-series ingest and query |
+| Grafana | `3000` | `/` | Historical dashboards and analysis |
+| Race HUD | `8091` | `/` | GPS/lap map and race visuals |
+
 ## Runtime URLs
 - Node-RED UI: `http://<pi-ip>:1880/`
 - Main dashboard: `http://<pi-ip>:1880/ui/`
@@ -116,6 +153,9 @@ Note: the Node-RED main dashboard embeds race HUD from `:8091` on the right pane
 Hardware:
 - UART GPS module connected to Pi UART (`/dev/ttyS0`)
 - Common wiring: GPS `TX -> Pi RX`, GPS `RX -> Pi TX`, plus `3.3V` and `GND`
+
+<details>
+<summary>Advanced UART bring-up and service overrides</summary>
 
 Pi serial/UART setup:
 ```bash
@@ -146,12 +186,18 @@ mosquitto_sub -h 127.0.0.1 -v -t 'subaru/gps' -C 1 -W 10
 ls -l /dev/ttyS0
 ```
 
+</details>
+
 ## Verification
 Telemetry topics:
 ```bash
 mosquitto_sub -h 127.0.0.1 -v -t 'subaru/status' -C 1 -W 10
 mosquitto_sub -h 127.0.0.1 -v -t 'subaru/data' -C 1 -W 10
 ```
+
+<details>
+<summary>Advanced Influx query checks (subaru_metrics and subaru_gps)</summary>
+
 Influx ingest (`subaru_metrics`):
 ```bash
 source observability/.env
@@ -171,6 +217,26 @@ curl -sS \
   -H "Accept: application/csv" \
   "http://127.0.0.1:8086/api/v2/query?org=$INFLUXDB_ORG" \
   --data-binary "from(bucket: \"$INFLUXDB_BUCKET\") |> range(start: -2m) |> filter(fn: (r) => r._measurement == \"subaru_gps\") |> limit(n: 5)"
+```
+
+</details>
+
+## Troubleshooting Decision Tree
+```mermaid
+flowchart TD
+  A[Issue observed] --> B{Service reachable?}
+  B -->|No| C[Run: bash scripts/start_observability.sh]
+  C --> D[Check docker compose ps and service logs]
+  B -->|Yes| E{MQTT data arriving?}
+  E -->|No| F[Run mosquitto_sub smoke checks]
+  F --> G{ECU or GPS path failing?}
+  G -->|ECU| H[Check /dev/ttyUSB0 and telemetry service logs]
+  G -->|GPS| I[Check /dev/ttyS0 and serial-getty disable state]
+  E -->|Yes| J{Influx receiving points?}
+  J -->|No| K[Validate telegraf.conf MQTT inputs and Influx token/org/bucket]
+  J -->|Yes| L{Dashboard missing data?}
+  L -->|Yes| M[Check Node-RED flows and :8091 HUD embed target]
+  L -->|No| N[Stack healthy]
 ```
 
 ## Human + Robot Docs
