@@ -2,6 +2,25 @@
 
 Raspberry Pi stack for Subaru ECU telemetry, live dashboarding, GPS race HUD, and time-series storage.
 
+## Architecture (Separation of Concerns)
+This repo is intentionally componentized so each runtime does one job well and communicates over MQTT.
+
+Flow at a glance:
+1. `telemetry/ssm_logger.py` polls the Subaru ECU and publishes JSON to MQTT topics (`subaru/data`, `subaru/status`, `subaru/dtc`, and metric topics).
+2. `gps/gps_to_mqtt_fast.py` (or `gps/gps_wanneroo_sim.py`) publishes location/track data to `subaru/gps`.
+3. Telegraf subscribes to MQTT topics and writes:
+   - `subaru/data` -> Influx measurement `subaru_metrics`
+   - `subaru/gps` -> Influx measurement `subaru_gps`
+4. Node-RED dashboard renders ECU telemetry and embeds the race HUD (`:8091`) for GPS/lap visuals.
+5. Grafana reads InfluxDB for historical analysis and tuning/trend dashboards.
+
+Why this architecture:
+- Decoupling: producers (ECU/GPS) do not depend on consumers (dashboard, storage, alerts).
+- Replaceability: you can swap simulator vs real GPS, or Node-RED vs Grafana views, without changing telemetry publishers.
+- Fault isolation: if one UI/service restarts, core publishers and other subscribers keep running.
+- Reuse: the same MQTT stream feeds live UI, storage, automation, and debugging tools simultaneously.
+- Operability: each component can be tested independently with `mosquitto_sub`, service logs, and topic-level smoke checks.
+
 ## What This Repo Provides
 - `telemetry/`: Subaru SSM2/K-line ECU polling and MQTT publishing (`subaru/*`)
 - `observability/`: InfluxDB + Grafana + Node-RED + Telegraf ingest
@@ -66,6 +85,45 @@ bash scripts/setup_observability_service.sh
 - Race HUD server (if running): `http://<pi-ip>:8091/`
 
 Note: the Node-RED main dashboard embeds race HUD from `:8091` on the right pane.
+
+## Live Dashboard Screenshot (Pi)
+Captured on this Pi on February 20, 2026:
+
+![Live dashboard running on Raspberry Pi](docs/images/dashboard-live-pi.png)
+
+## GPS Requirements (What You Need)
+Hardware:
+- UART GPS module connected to Pi UART (`/dev/ttyS0`)
+- Common wiring: GPS `TX -> Pi RX`, GPS `RX -> Pi TX`, plus `3.3V` and `GND`
+
+Pi serial/UART setup:
+```bash
+sudo raspi-config
+# Interface Options -> Serial Port
+# "Login shell over serial?" -> No
+# "Enable serial port hardware?" -> Yes
+sudo reboot
+```
+
+If `ttyS0` is still occupied by a login service:
+```bash
+sudo systemctl stop serial-getty@ttyS0.service
+sudo systemctl disable serial-getty@ttyS0.service
+sudo systemctl mask serial-getty@ttyS0.service
+```
+
+Start GPS publisher and HUD:
+```bash
+cd /home/pi/subaru-pi-platform/gps
+python3 gps_to_mqtt_fast.py --serial-port /dev/ttyS0 --mqtt-topic subaru/gps
+python3 mqtt_gps_map_server.py --mqtt-topic subaru/gps --host 0.0.0.0 --port 8091
+```
+
+Quick GPS checks:
+```bash
+mosquitto_sub -h 127.0.0.1 -v -t 'subaru/gps' -C 1 -W 10
+ls -l /dev/ttyS0
+```
 
 ## Verification
 Telemetry topics:
