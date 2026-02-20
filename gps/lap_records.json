@@ -1286,6 +1286,114 @@
                 46.79978537559509,
                 68.80018711090088
               ]
+            },
+            {
+              "completed_at_sec": 1771563373.1943052,
+              "driver": "Beerens",
+              "lap_number": 5,
+              "lap_time_sec": 68.39998149871826,
+              "session_id": 3,
+              "splits_sec": [
+                23.39936375617981,
+                45.60236430168152,
+                68.39998149871826
+              ]
+            },
+            {
+              "completed_at_sec": 1771563509.5971487,
+              "driver": "Beerens",
+              "lap_number": 6,
+              "lap_time_sec": 70.00298023223877,
+              "session_id": 3,
+              "splits_sec": [
+                24.799745798110962,
+                48.401684045791626,
+                70.00298023223877
+              ]
+            },
+            {
+              "completed_at_sec": 1771563579.1938953,
+              "driver": "Beerens",
+              "lap_number": 7,
+              "lap_time_sec": 69.59674668312073,
+              "session_id": 3,
+              "splits_sec": [
+                24.396581649780273,
+                48.39660930633545,
+                69.59674668312073
+              ]
+            },
+            {
+              "completed_at_sec": 1771563648.3937452,
+              "driver": "Beerens",
+              "lap_number": 8,
+              "lap_time_sec": 69.19984984397888,
+              "session_id": 3,
+              "splits_sec": [
+                26.19978976249695,
+                49.40012812614441,
+                69.19984984397888
+              ]
+            },
+            {
+              "completed_at_sec": 1771563719.1937962,
+              "driver": "Beerens",
+              "lap_number": 9,
+              "lap_time_sec": 70.80005097389221,
+              "session_id": 3,
+              "splits_sec": [
+                19.80019497871399,
+                46.000088691711426,
+                70.80005097389221
+              ]
+            },
+            {
+              "completed_at_sec": 1771563784.394012,
+              "driver": "Beerens",
+              "lap_number": 10,
+              "lap_time_sec": 65.2002158164978,
+              "session_id": 3,
+              "splits_sec": [
+                24.600508451461792,
+                44.79995632171631,
+                65.2002158164978
+              ]
+            },
+            {
+              "completed_at_sec": 1771563853.9938123,
+              "driver": "Beerens",
+              "lap_number": 11,
+              "lap_time_sec": 69.59980034828186,
+              "session_id": 3,
+              "splits_sec": [
+                20.60213351249695,
+                44.39974927902222,
+                69.59980034828186
+              ]
+            },
+            {
+              "completed_at_sec": 1771563918.3937824,
+              "driver": "Beerens",
+              "lap_number": 12,
+              "lap_time_sec": 64.39997005462646,
+              "session_id": 3,
+              "splits_sec": [
+                20.801116228103638,
+                42.40014934539795,
+                64.39997005462646
+              ]
+            },
+            {
+              "completed_at_sec": 1771563986.793693,
+              "driver": "Beerens",
+              "lap_number": 13,
+              "lap_time_sec": 68.39991068840027,
+              "session_id": 3,
+              "splits_sec": [
+                19.800561904907227,
+                41.599955558776855,
+                68.39991068840027
+              ]
             }
           ]
         }

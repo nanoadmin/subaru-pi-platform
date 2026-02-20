@@ -2,6 +2,32 @@
 
 Raspberry Pi stack for Subaru ECU telemetry, live dashboarding, GPS race HUD, and time-series storage.
 
+## Live Dashboard Screenshot (Pi)
+Captured on this Pi on February 20, 2026:
+
+![Live dashboard running on Raspberry Pi](docs/images/dashboard-live-pi.png)
+
+## Architecture Diagram
+```mermaid
+flowchart LR
+  ECU[Subaru ECU]
+  GPS[UART GPS / Simulator]
+  MQTT[(Mosquitto MQTT<br/>127.0.0.1:1883)]
+  TLG[Telegraf]
+  IFX[(InfluxDB<br/>:8086)]
+  NR[Node-RED Dashboard<br/>:1880/ui]
+  HUD[Race HUD<br/>:8091]
+  GRAF[Grafana<br/>:3000]
+
+  ECU -->|subaru/data<br/>subaru/status<br/>subaru/dtc| MQTT
+  GPS -->|subaru/gps| MQTT
+  MQTT --> TLG
+  TLG -->|subaru_metrics<br/>subaru_gps| IFX
+  IFX --> GRAF
+  MQTT --> NR
+  HUD --> NR
+```
+
 ## Architecture (Separation of Concerns)
 This repo is intentionally componentized so each runtime does one job well and communicates over MQTT.
 
@@ -85,11 +111,6 @@ bash scripts/setup_observability_service.sh
 - Race HUD server (if running): `http://<pi-ip>:8091/`
 
 Note: the Node-RED main dashboard embeds race HUD from `:8091` on the right pane.
-
-## Live Dashboard Screenshot (Pi)
-Captured on this Pi on February 20, 2026:
-
-![Live dashboard running on Raspberry Pi](docs/images/dashboard-live-pi.png)
 
 ## GPS Requirements (What You Need)
 Hardware:

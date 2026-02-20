@@ -21,6 +21,7 @@ import paho.mqtt.client as mqtt
 DEFAULT_TRACK_FILE = os.path.join(os.path.dirname(__file__), "wanneroo_main_loop.json")
 DEFAULT_RECORDS_FILE = os.path.join(os.path.dirname(__file__), "lap_records.json")
 DRIVER_NAMES = ["Beerens", "Frenchy", "Dave", "Noah", "Stig"]
+MAX_TRACK_ERROR_M = 120.0
 MIN_VALID_LAP_SEC = 20.0
 
 INDEX_HTML = """<!doctype html>
@@ -306,6 +307,37 @@ INDEX_HTML = """<!doctype html>
       return `${Math.abs(sec).toFixed(3)}s ${sec <= 0 ? 'AHEAD' : 'BEHIND'}`;
     };
 
+    const approxDistM = (a, b) => {
+      const dLat = (b.lat - a.lat) * 111132.92;
+      const latMid = (a.lat + b.lat) * 0.5 * Math.PI / 180.0;
+      const dLon = (b.lon - a.lon) * (111412.84 * Math.cos(latMid));
+      return Math.hypot(dLat, dLon);
+    };
+
+    const filterTrailTail = (history) => {
+      if (!Array.isArray(history) || history.length === 0) return [];
+      const maxJumpM = 120.0;
+      let startIdx = history.length - 1;
+      for (let i = history.length - 1; i > 0; i--) {
+        const a = history[i - 1];
+        const b = history[i];
+        if (!a || !b || !isFinite(a.lat) || !isFinite(a.lon) || !isFinite(b.lat) || !isFinite(b.lon)) {
+          startIdx = i;
+          break;
+        }
+        if (approxDistM(a, b) > maxJumpM) {
+          startIdx = i;
+          break;
+        }
+      }
+      const out = [];
+      for (let i = startIdx; i < history.length; i++) {
+        const p = history[i];
+        if (p && isFinite(p.lat) && isFinite(p.lon)) out.push([p.lat, p.lon]);
+      }
+      return out;
+    };
+
     let map, carMarker, trail, lastSeq = -1;
     let suppressDriverChangeEvent = false;
 
@@ -461,7 +493,7 @@ INDEX_HTML = """<!doctype html>
           map.panTo(latlng, { animate: false });
 
           if (Array.isArray(data.history)) {
-            trail.setLatLngs(data.history.map(x => [x.lat, x.lon]));
+            trail.setLatLngs(filterTrailTail(data.history));
           }
         }
 
@@ -995,6 +1027,10 @@ class SharedState:
         lat = float(payload["lat"])
         lon = float(payload["lon"])
         s_m, self.last_seg_idx, err_m = self.track.project(lat, lon, self.last_seg_idx)
+
+        # Reject obvious off-track GPS outliers so trail/timing do not spike.
+        if err_m > MAX_TRACK_ERROR_M:
+            return
 
         ts_ns = payload.get("ts_ns")
         if isinstance(ts_ns, int) and ts_ns > 0:
